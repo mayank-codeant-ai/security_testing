@@ -1,0 +1,106 @@
+# npm audit report
+
+@angular/core  <10.2.5
+Severity: moderate
+Cross site scripting in Angular - https://github.com/advisories/GHSA-c75v-2vq8-878f
+fix available via `npm audit fix --force`
+Will install codelyzer@0.0.28, which is a breaking change
+node_modules/codelyzer/node_modules/@angular/core
+  codelyzer  >=1.0.0-beta.0
+  Depends on vulnerable versions of @angular/core
+  node_modules/codelyzer
+
+parseuri  <2.0.0
+Severity: moderate
+parse-uri Regular expression Denial of Service (ReDoS) - https://github.com/advisories/GHSA-6fx8-h7jm-663j
+fix available via `npm audit fix --force`
+Will install socket.io-client@4.8.1, which is a breaking change
+node_modules/parseuri
+  engine.io-client  0.7.0 || 0.7.8 - 0.7.9 || 1.0.2 - 6.1.1
+  Depends on vulnerable versions of parseuri
+  Depends on vulnerable versions of ws
+  node_modules/engine.io-client
+    socket.io-client  1.0.0-pre - 4.4.1
+    Depends on vulnerable versions of engine.io-client
+    Depends on vulnerable versions of parseuri
+    Depends on vulnerable versions of socket.io-parser
+    node_modules/socket.io-client
+
+postcss  <8.4.31
+Severity: moderate
+PostCSS line return parsing error - https://github.com/advisories/GHSA-7fh5-64p2-3v2j
+fix available via `npm audit fix --force`
+Will install stylelint@16.24.0, which is a breaking change
+node_modules/postcss-less/node_modules/postcss
+node_modules/postcss-safe-parser/node_modules/postcss
+node_modules/postcss-sass/node_modules/postcss
+node_modules/postcss-scss/node_modules/postcss
+node_modules/postcss-sorting/node_modules/postcss
+node_modules/stylelint-order/node_modules/postcss
+node_modules/stylelint/node_modules/postcss
+node_modules/sugarss/node_modules/postcss
+  autoprefixer  1.0.20131222 - 9.8.8
+  Depends on vulnerable versions of postcss
+  node_modules/stylelint/node_modules/autoprefixer
+    stylelint  0.1.0 - 13.13.1
+    Depends on vulnerable versions of autoprefixer
+    Depends on vulnerable versions of postcss
+    Depends on vulnerable versions of postcss-less
+    Depends on vulnerable versions of postcss-safe-parser
+    Depends on vulnerable versions of postcss-sass
+    Depends on vulnerable versions of postcss-scss
+    Depends on vulnerable versions of sugarss
+    node_modules/stylelint
+      stylelint-config-sass-guidelines  <=3.1.0 || 5.0.0 - 8.0.0
+      Depends on vulnerable versions of stylelint
+      Depends on vulnerable versions of stylelint-order
+      Depends on vulnerable versions of stylelint-scss
+      node_modules/stylelint-config-sass-guidelines
+      stylelint-order  <=4.1.0
+      Depends on vulnerable versions of postcss
+      Depends on vulnerable versions of postcss-sorting
+      Depends on vulnerable versions of stylelint
+      node_modules/stylelint-order
+      stylelint-scss  0.0.0-alpha.1 || 1.0.0 - 3.21.0
+      Depends on vulnerable versions of stylelint
+      node_modules/stylelint-scss
+  postcss-less  <=3.1.4
+  Depends on vulnerable versions of postcss
+  node_modules/postcss-less
+  postcss-safe-parser  <=4.0.2
+  Depends on vulnerable versions of postcss
+  node_modules/postcss-safe-parser
+  postcss-sass  <=0.4.4
+  Depends on vulnerable versions of postcss
+  node_modules/postcss-sass
+  postcss-scss  <=2.1.1
+  Depends on vulnerable versions of postcss
+  node_modules/postcss-scss
+  postcss-sorting  <=5.0.1
+  Depends on vulnerable versions of postcss
+  node_modules/postcss-sorting
+  sugarss  <=2.0.0
+  Depends on vulnerable versions of postcss
+  node_modules/sugarss
+
+socket.io-parser  4.0.4 - 4.2.2
+Severity: moderate
+Insufficient validation when decoding a Socket.IO packet - https://github.com/advisories/GHSA-cqmj-92xf-r6r9
+fix available via `npm audit fix --force`
+Will install socket.io-client@4.8.1, which is a breaking change
+node_modules/socket.io-client/node_modules/socket.io-parser
+
+ws  7.0.0 - 7.5.9
+Severity: high
+ws affected by a DoS when handling a request with many HTTP headers - https://github.com/advisories/GHSA-3h5v-q93c-6h6q
+fix available via `npm audit fix --force`
+Will install socket.io-client@4.8.1, which is a breaking change
+node_modules/engine.io-client/node_modules/ws
+
+19 vulnerabilities (16 moderate, 3 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
