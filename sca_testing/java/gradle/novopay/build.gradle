@@ -1,0 +1,56 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    ext {
+        kotlin_version = "2.2.0"
+        dagger_hilt_version = "2.56.2"
+        nav_version = "2.5.2"
+    }
+    repositories {
+        google()        // Official Google Maven repository, needed for Android-specific artifacts
+        mavenCentral()  // Central Maven repository, needed for most open-source libraries
+        maven { url "https://jitpack.io" } // Only include if you have dependencies from JitPack
+        maven { url "https://plugins.gradle.org/m2/" } // Only include if you need Gradle plugins from this repository
+        maven {
+            url 'https://maven.mappls.com/repository/mappls/'
+        }
+        maven { url 'https://maven.zohodl.com' }
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.9.3'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "io.realm:realm-gradle-plugin:10.19.0"
+
+        classpath("com.google.dagger:hilt-android-gradle-plugin:$dagger_hilt_version")
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+        classpath "androidx.navigation:navigation-safe-args-gradle-plugin:$nav_version"
+        classpath 'com.google.gms:google-services:4.4.1'
+        classpath 'com.google.firebase:firebase-crashlytics-gradle:2.9.9'
+        classpath 'org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:4.2.1.3168'
+        classpath 'com.google.firebase:perf-plugin:1.4.2'
+        classpath "org.jacoco:org.jacoco.core:0.8.8"
+    }
+
+}
+
+plugins {
+    id "org.sonarqube" version "4.3.0.3225"
+}
+
+allprojects {
+    repositories {
+        google()        // Official Google Maven repository, needed for Android-specific artifacts
+        mavenCentral()  // Central Maven repository, needed for most open-source libraries
+        maven { url "https://jitpack.io" } // Only include if you have dependencies from JitPack
+        maven { url "https://plugins.gradle.org/m2/" } // Only include if you need Gradle plugins from this repository
+        maven {
+            url 'https://maven.mappls.com/repository/mappls/'
+        }
+        maven { url 'https://maven.zohodl.com' }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

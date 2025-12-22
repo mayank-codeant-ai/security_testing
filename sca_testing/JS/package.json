@@ -1,0 +1,28 @@
+{
+  "name": "sca-test-vulnerable",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash": "4.17.20",
+    "minimist": "1.2.5",
+    "chalk": "4.1.2",
+    "debug": "4.4.2",
+    "axios": "0.27.2",
+    "node-fetch": "2.6.7",
+    "qs": "6.10.3",
+    "glob-parent": "5.1.2",
+    "ansi-regex": "5.0.1",
+    "nth-check": "1.0.2"
+  },
+  "devDependencies": {
+    "lodash": "4.17.20",
+    "minimist": "1.2.5",
+    "chalk": "4.1.2",
+    "debug": "4.4.2",
+    "axios": "0.27.2",
+    "node-fetch": "2.6.7",
+    "qs": "6.10.3",
+    "glob-parent": "5.1.2",
+    "ansi-regex": "5.0.1",
+    "nth-check": "1.0.2"
+  }
+}
