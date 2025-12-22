@@ -1,0 +1,23 @@
+requests==2.19.1          # CVE-2018-18074: SSRF vulnerability
+lxml==4.6.0               # CVE-2021-43818: DoS via billion laughs attack
+flask==1.0                # CVE-2018-1000656: Remote code execution
+pyyaml==5.1               # CVE-2020-14343: Arbitrary code execution
+cryptography==2.1.4       # CVE-2018-10903: Key loading flaw
+jinja2==2.7.2             # CVE-2016-10745: Template injection
+pillow==6.1.0             # CVE-2020-10177: Out-of-bounds read
+urllib3==1.26.18          # CVE-2025-66418: HTTP client flaws (pre-2.6.0)
+langflow==1.2.0           # CVE-2025-3248: Unauthenticated RCE
+boto3==1.40.50
+bandit
+pycares==4.11.0
+toml==0.10.2
+datetime
+requests
+sympy==1.12
+rmspace==7
+compactify==2
+black==23.9.1
+radon==5.1.0
+openai==1.58.1
+PyJWT
+cryptography

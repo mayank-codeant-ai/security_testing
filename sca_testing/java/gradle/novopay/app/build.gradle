@@ -1,0 +1,1003 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlin-parcelize'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'dagger.hilt.android.plugin'
+apply plugin: 'androidx.navigation.safeargs.kotlin'
+apply plugin: 'com.google.firebase.crashlytics'
+apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.firebase.firebase-perf'
+apply plugin: 'jacoco'
+
+
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+
+android {
+    lint {
+        abortOnError false // ✅ This prevents lint errors from failing your build
+        checkReleaseBuilds false // Optional: disables lint for release builds
+    }
+    compileSdk Integer.parseInt(project.COMPILE_SDK_VERSION)
+
+    namespace 'com.hdfcbank.trustsli'
+    defaultConfig {
+        applicationId "com.hdfcbank.trustsli"
+        vectorDrawables.useSupportLibrary = true
+        minSdkVersion Integer.parseInt(project.MIN_SDK_VERSION)
+        targetSdkVersion Integer.parseInt(project.TARGET_SDK_VERSION)
+        versionCode Integer.parseInt(project.APP_VERSION_CODE)
+        versionName project.APP_VERSION_NAME
+        multiDexEnabled true
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+//        setProperty("archivesBaseName", "HDFC-SLI_${versionName}_${versionCode}")
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"
+        }
+        buildConfigField("String", "ATLAS_CLIENT_ID", project.ATLAS_CLIENT_ID)
+        buildConfigField("String", "MAP_SDK_KEY", project.MAP_SDK_KEY)
+        buildConfigField("String", "REST_API_KEY", project.REST_API_KEY)
+        buildConfigField("String", "ATLAS_CLIENT_SECRET", project.ATLAS_CLIENT_SECRET)
+        buildConfigField("Boolean", "OFFLINE_ENABLED", project.OFFLINE_ENABLED.toString())
+        buildConfigField("Boolean", "CFE_OFFLINE_ENABLED", project.CFE_OFFLINE_ENABLED.toString())
+        buildConfigField("Boolean", "TELEMETRY_ENABLED", project.TELEMETRY_ENABLED.toString())
+        buildConfigField("Boolean", "SSL_DISABLED", project.SSL_DISABLED)
+        buildConfigField("String", "APM_APPLICATION_KEY", project.APM_APPLICATION_KEY)
+        buildConfigField("String", "MAP_SDK_KEY", project.MAP_SDK_KEY)
+        resValue "string", "maps_api_key", "\"${project.MAP_SDK_KEY}\""
+
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("keystore/hdfcbank.keystore")
+            storePassword "hdfcbank123\$"
+            keyAlias "hdfcbank_alias"
+            keyPassword "hdfcbank123\$"
+        }
+    }
+
+
+    buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+            testCoverageEnabled = true
+            debuggable true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        release {
+            debuggable false
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    flavorDimensions "environment"
+    productFlavors {
+        dev {
+            dimension "environment"
+            versionNameSuffix "-novopayApk"
+            buildConfigField "String", "SERVER_URL", "\"https://mfi.novopay.in/api-gateway/\""
+            buildConfigField 'String', 'FLAVOR', '"novopayApk"'
+        }
+
+        uat {
+            dimension "environment"
+            versionNameSuffix "-uat"
+            applicationIdSuffix ".uat"
+            buildConfigField "String", "SERVER_URL", "\"https://agentapp.usli.hdfcbank.com/api-gateway/\""
+            buildConfigField 'String', 'FLAVOR', '"uat"'
+        }
+
+        sit {
+            dimension "environment"
+            versionNameSuffix "-sit"
+            applicationIdSuffix ".sit"
+            buildConfigField "String", "SERVER_URL", "\"https://agentapp-sit.usli.hdfcbank.com/api-gateway/\""
+            buildConfigField 'String', 'FLAVOR', '"sit"'
+        }
+
+
+        preprod {
+            dimension "environment"
+            versionNameSuffix "-preprod"
+            applicationIdSuffix ".preprod"
+            buildConfigField "String", "SERVER_URL", "\"https://agentapp-ppd.usli.hdfcbank.com/api-gateway/\""
+            buildConfigField 'String', 'FLAVOR', '"preprod"'
+        }
+
+        prod {
+            dimension "environment"
+            versionNameSuffix "-prod"
+            applicationIdSuffix ".prod"
+            buildConfigField "String", "SERVER_URL", "\"https://agentapp.sli.hdfcbank.com/api-gateway/\""
+            buildConfigField 'String', 'FLAVOR', '"prod"'
+        }
+    }
+
+    applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach { output ->
+            def versionName = variant.versionName
+            def versionCode = variant.versionCode
+            def versionNameSuffix = variant.productFlavors[0].versionNameSuffix ?: ""
+            def buildType = variant.buildType.name
+            outputFileName = "HDFC-SLI_${versionName}_${versionCode}_${buildType}.apk"
+        }
+    }
+
+
+    compileOptions {
+        // coreLibraryDesugaringEnabled = true
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+
+    buildFeatures {
+        buildConfig = true
+        viewBinding true
+        dataBinding true
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+            excludes += ['**/generated/source/buildConfig/**', '**/generated/source/rs/**', '**/generated/res/**']
+        }
+        resources {
+            excludes += ['org/bouncycastle/x509/CertPathReviewerMessages_de.properties', 'org/bouncycastle/x509/CertPathReviewerMessages.properties', '**/generated/source/buildConfig/**', '**/generated/source/rs/**', '**/generated/res/**']
+        }
+    }
+
+
+    ndkVersion '20.1.5948944'
+
+    sonarqube {
+        properties {
+            property "sonar.organization", "novopay"
+            property "sonar.host.url", "https://sonarcloud.io"
+            property "sonar.sources", "src/main/kotlin,src/main/java"
+
+            property "sonar.exclusions", "robospice/**/*"
+            property "sonar.exclusions", "config/**/*"
+            property "sonar.exclusions", "**/*.xml"
+            property "sonar.exclusions", '**/*Test*/**,' +
+                    '*.json,' +
+                    '**/*test*/**,' +
+                    '**/.gradle/**,' +
+                    '**/R.class'
+
+            def unit = fileTree(dir: project.projectDir, includes: ['**/*.exec']).files
+            def ui = fileTree(dir: project.projectDir, includes: ['**/*.ec']).files
+            unit.addAll(ui)
+            def files = unit.join(", ")
+
+            property "sonar.jacoco.reportPaths", files
+            property "sonar.java.coveragePlugin", "jacoco"
+        }
+    }
+
+
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+    lint {
+        checkReleaseBuilds false
+    }
+
+}
+
+
+
+configurations {
+    // this configuration is used to exclude the simple-xml library from the app. in FingerprintScannerControl module,
+    // we are using the simple-xml library. also same dependency is used in the ecsrdlibrary_1.0.171109-release.aar lib from SignDesk.
+    // so, to avoid the conflict, we are excluding the simple-xml library from the app module.
+    configureEach {
+        exclude group: 'org.simpleframework', module: 'simple-xml'
+    }
+}
+dependencies {
+    api fileTree(include: ['*.jar'], dir: 'libs')
+
+    implementation libs.legacySupportV4
+    // coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+
+    implementation libs.kotlinStdlib
+    implementation libs.coreKtx
+    implementation libs.appcompat
+    implementation libs.material
+    implementation libs.constraintlayout
+    implementation libs.activityKtx
+    implementation libs.fragmentKtx
+
+    implementation "androidx.paging:paging-runtime:3.2.1"
+
+
+    /*
+    *   Lifecycle Dependencies
+     */
+    implementation libs.lifecycleLivedataKtx
+    implementation libs.lifecycleViewmodelKtx
+    implementation libs.lifecycleViewmodelSavedstate
+    implementation libs.lifecycleRuntimeKtx
+
+
+    /**
+     * Navigation Dependencies
+     */
+    implementation libs.navigationFragmentKtx
+    implementation libs.navigationUiKtx
+
+
+    //coroutines
+    implementation libs.coroutinesAndroid
+
+    // Add security dependency
+    implementation libs.coreKtx
+
+
+    implementation libs.bouncyCastle // Use the latest version available
+
+
+    /**
+     * Firebase Dependencies
+     */
+//    implementation Dependencies.Firebase.core
+    implementation libs.firebaseCrashlytics
+    implementation libs.firebaseMessaging
+    implementation libs.firebaseAnalytics
+    implementation libs.firebasePerfKtx
+
+
+    implementation libs.circleImageView
+    implementation libs.gson
+    implementation libs.glide
+    implementation libs.appcompat
+    implementation libs.material
+    implementation libs.constraintlayout
+    kapt libs.glide
+    kapt libs.daggerCompiler
+
+
+    implementation libs.zxingCore
+
+//    implementation libs.appseeAndroid
+    implementation libs.materialDialogsCore
+    implementation libs.shimmer
+    implementation libs.timber
+
+    implementation libs.playCore
+    implementation libs.playCoreKtx
+    implementation libs.multidex
+
+
+    implementation libs.hiltAndroid
+    kapt libs.hiltAndroidCompiler
+
+
+    //cameraX
+    implementation libs.cameraCamera2
+    implementation libs.cameraLifecycle
+    implementation libs.cameraView
+
+    implementation libs.picasso
+    implementation libs.codeScanner
+
+    implementation libs.circleImageView
+    implementation libs.androidImageCropper
+
+    implementation libs.multidex //enter the latest multidex version
+
+
+    // lotti animation
+    implementation libs.lottie
+
+    //for SignDesk
+    implementation libs.slf4j // slf4j 2.x not yet supported
+    devImplementation files('libs/uat/signDesk_sdk_V1.1_UAT.aar')
+    devImplementation files('libs/uat/cdsl_signdesk_esign_11_03_25.aar')
+    devImplementation files('libs/uat/ecsrdlibrary_1.0.171109-release-07-11-24.aar')
+    devImplementation files('libs/uat/protean-esign-v-3.8_UAT.aar')
+
+    uatImplementation files('libs/uat/signDesk_sdk_V1.1_UAT.aar')
+    uatImplementation files('libs/uat/cdsl_signdesk_esign_11_03_25.aar')
+    uatImplementation files('libs/uat/ecsrdlibrary_1.0.171109-release-07-11-24.aar')
+    uatImplementation files('libs/uat/protean-esign-v-3.8_UAT.aar')
+
+    preprodImplementation files('libs/uat/signDesk_sdk_V1.1_UAT.aar')
+    preprodImplementation files('libs/uat/cdsl_signdesk_esign_11_03_25.aar')
+    preprodImplementation files('libs/uat/ecsrdlibrary_1.0.171109-release-07-11-24.aar')
+    preprodImplementation files('libs/uat/protean-esign-v-3.8_UAT.aar')
+
+    sitImplementation files('libs/uat/signDesk_sdk_V1.1_UAT.aar')
+    sitImplementation files('libs/uat/cdsl_signdesk_esign_11_03_25.aar')
+    sitImplementation files('libs/uat/ecsrdlibrary_1.0.171109-release-07-11-24.aar')
+    sitImplementation files('libs/uat/protean-esign-v-3.8_UAT.aar')
+
+    // use the below line for prod, SignDesk
+    prodImplementation files('libs/prod/cdsl_signdesk_esign_11_03_25.aar')
+    prodImplementation files('libs/prod/ecsrdlibrary_1.0.171109-release-07-11-24.aar')
+    prodImplementation files('libs/prod/protean-esign-v-3.8_live.aar')
+    prodImplementation files('libs/prod/signDesk_sdk_V1.1_LIve.aar')
+
+    // This is for the SignDesk SDK because the SignDesk SDK need this for NSDL.
+    implementation 'com.scottyab:rootbeer-lib:0.1.1'
+
+    implementation libs.androidDeviceNames
+    implementation libs.crashActivity
+
+    implementation libs.workRuntimeKtx
+    implementation libs.hiltWork
+    // When using Kotlin.
+    kapt libs.hiltCompiler
+
+    implementation libs.playServicesMaps
+    implementation libs.places
+
+
+    implementation libs.otpViewer
+
+    implementation libs.roomKtx
+    kapt libs.roomCompiler
+
+
+    implementation libs.sqlcipher
+    implementation libs.sqlite
+
+    //  debugImplementation libs.debugDb
+
+
+    //SSP and SDP
+    implementation libs.sdpAndroid
+    implementation libs.sspAndroid
+
+    implementation libs.permissionx
+
+    implementation libs.trustkit
+    implementation libs.certificatetransparencyAndroid
+
+    implementation 'io.nerdythings:okhttp-profiler:1.1.1'
+
+
+    testImplementation "org.mockito:mockito-core:5.3.1"
+    testImplementation "org.mockito.kotlin:mockito-kotlin:5.1.0"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3"
+    testImplementation "org.robolectric:robolectric:4.11.1"
+    testImplementation "androidx.arch.core:core-testing:2.2.0"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.9.2"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:5.9.2"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.9.2"
+    testImplementation "org.jetbrains.kotlin:kotlin-test:1.9.22"
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:1.9.22"
+
+/*
+    // Unit test dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'androidx.test:core:1.6.1'
+    testImplementation 'androidx.test.ext:junit:1.2.1'
+    testImplementation 'androidx.test:runner:1.6.2'
+    testImplementation 'androidx.test:rules:1.6.1'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1'
+
+    // Instrumented test dependencies
+    androidTestImplementation libs.testExtJUnit
+    androidTestImplementation libs.espressoCore
+    androidTestImplementation libs.testRunner
+    androidTestImplementation libs.testRules
+    androidTestImplementation libs.coroutinesTest*/
+
+    implementation libs.pdf.pdfViewer  //new PDF lib
+    implementation libs.playServicesLocation
+
+    //inspecting network
+    implementation libs.chukerNetworkLib
+
+    // Mobile APM SDK
+    implementation 'com.zoho.site24x7:mobileapm:2.2.2'
+
+
+    // MAP MY INDIA
+    implementation libs.mapplsAndroidSdk
+    implementation libs.geofenceUi
+
+    implementation project(path: ':commonLib')
+    implementation project(path: ':networklib')
+    implementation project(path: ':uilib')
+    implementation project(path: ':utillib')
+    implementation project(path: ':realmandroid')
+    implementation project(path: ':FingerprintScannerControl')
+    // Phone number hint
+    implementation libs.playServicesAuth
+
+    //for leak canary
+    //  debugImplementation libs.leakcanaryAndroid
+
+
+    // Test dependencies
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "androidx.arch.core:core-testing:2.2.0"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1"
+    testImplementation "io.mockk:mockk:1.13.5"
+    testImplementation "app.cash.turbine:turbine:1.0.0"
+    testImplementation "org.robolectric:robolectric:4.12.1"
+    testImplementation "androidx.test:core:1.5.0"
+    testImplementation "androidx.test:runner:1.5.2"
+    testImplementation "androidx.test.ext:junit:1.1.5"
+    testImplementation "androidx.test.ext:junit-ktx:1.1.5"
+    testImplementation "org.jetbrains.kotlin:kotlin-test:1.9.0"
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:1.9.0"
+
+
+    testImplementation "org.jetbrains.kotlin:kotlin-test:2.0.0"
+}
+
+tasks.withType(Test).configureEach {
+    if (name == "testDevDebugUnitTest") {
+        ignoreFailures = true
+    }
+    jacoco.includeNoLocationClasses = true
+    jacoco.excludes = ['jdk.internal.*']
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+    }
+
+}
+sonarqube {
+    properties {
+        property "sonar.organization", "novopay"
+        property "sonar.projectKey", "SLI-ANDROID"
+        property "sonar.projectName", "SLI-ANDROID"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.token", "dec4faefa47bd47b86e52c512c52948c44d14c5d" // pragma: allowlist secret
+        property "sonar.tests", ""
+        property "sonar.sources", "C:/Users/anureddy.kv/trusst-app/app/src/main/java"
+        property "sonar.language", "kotlin"
+        property "sonar.sourceEncoding", "UTF-8"
+
+        property "sonar.exclusions", [
+                "robospice/**/*",
+                "config/**/*",
+                "**/*.xml",
+                "**/Test/**",
+                "**/test/**",
+                "**/.gradle/**",
+                "**/R.class",
+                "**/Status.kt",
+                "**/Resource.kt",
+                "**/ApiService.kt",
+                "**/Respository.kt",
+                "**/StatusTag.kt",
+                "**/ResourceTag.kt",
+                "**/ApiResponse.kt",
+                "**/ApiResponseTag.kt",
+                "**/PreviewActivity.java",
+                "**/PreviewActivity.kt",
+                "**/BuildConfig.java",
+                "**/BuildConfig.kt",
+                "**/R.java",
+                "**/R.kt",
+                "**/Manifest.xml",
+                "**/AndroidManifest.xml",
+                "**/BuildConfig.*",
+                "**/R.*",
+                "**/HdfcSearchView.kt",
+                "*.json"
+
+        ].join(",")
+
+
+        property "sonar.coverage.jacoco.xmlReportPaths", "app/build/reports/jacoco/testDebugUnitTestCoverage/testDebugUnitTestCoverage.xml"
+
+        // ✅ Android Lint reports
+        property "sonar.androidLint.reportPaths", [
+                "app/build/reports/lint-results-debug.xml",
+                "networklib/build/reports/lint-results-debug.xml",
+                "commonLib/build/reports/lint-results-debug.xml"
+        ].join(",")
+    }
+}
+
+tasks.register('sliDevDownloadManager') {
+    doLast {
+        def androidExtension = project.extensions.findByName("android")
+        def versionCode = null
+        def versionName = null
+        def versionNameSuffix = "-novopayApk"
+        if (androidExtension != null) {
+            versionCode = androidExtension.defaultConfig.versionCode
+            versionName = androidExtension.defaultConfig.versionName
+        }
+
+        new File("$projectDir", "sli_app_manager.html").text = """
+       <html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+<link rel="stylesheet" href="files/style.css">
+</head>
+</head>
+<body>
+<div class="wrapper">
+<!--Header-->
+<div class="header">
+<div style="background-color: #3c7eee;height:56px;position: fixed;width: 100%">
+<div style="margin:5px;">
+<img src="files/ic_launcher-web.png" style="vertical-align: middle;height: 46px;">
+<p style="display: inline;font-size: 20px;color: white;font-weight: 700;">HDFC Sustainable Livelihood Initiative</p>
+</div>
+</div>
+<div style="width:100%;height: 8px;background-color: #3c7eee;position: fixed;top:56px;z-index: -1;">
+<div style="width:100%;height: 12px;background-color: white;border-radius: 8px 12px 0 0;"></div>
+</div>
+</div>
+<div class="content">
+<div>
+<p class="questionanswerp">I have been onboarded for HDFC Sustainable Livelihood Initiative, what should I do now?</p>
+<div>
+<ol>
+<li>
+                        Click on the download button to download the latest version of the <b>HDFC Sustainable Livelihood Initiative</b>.
+                        <div>
+                            <p>HDFC SLI Latest App Version: ${versionName}${versionNameSuffix}</p>
+                        </div>
+                        <div>
+                        <div>
+                            <p><a href="HDFC-SLI_${versionName}${versionNameSuffix}_${versionCode}_release.apk" style="display: none;" id="download" class="button">Download</a></p>
+                            <button onclick="window.open(document.getElementById(&#39;download&#39;).getAttribute(&#39;href&#39;))" style="background-color: #3c7eee; border: none; color: white; padding: 10px; height: 50px; text-align: center; font-size: 20px; border-radius: 5px;">Download</button>
+                        </div>
+</li>
+<li>
+To install the App, follow these steps:
+                        <ul style="list-style-position: inside;padding-left: 0;list-style-type:disc;">
+                            <li style="margin: 0">If installation of APK from an unknown source is not enabled on your device, your web browser will prompt a message. Tap on the <b>Settings</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/3.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Your web browser will display a new page to enable the setting. Tap on the <b>Allow from this source</b> toggle button.
+                                 <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/4.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Press the back button on your phone and open the APK again. Now your web browser will prompt a new message to install the APK. Tap on the <b>Install</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/5.jpg" class="steps"></div></li>
+                            <li style="margin: 0">After installation, a new message will confirm the App installation. Tap on the <b>Open</b> button to open the <b>HDFC Sustainable Livelihood Initiative App</b>.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/6.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> requires your permissions to run the Application. Tap on the <b>Allow</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/7.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> will display the login page. Verify the application version before login.
+                            <br> Enter your registered AD ID/Employee ID with the HDFC Bank and Tap on the <b>Login</b> button to proceed.</li>
+</ul>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="footer">
+<div>
+<p>Need additional help? Call us at</p>
+</div>
+<div>
+<p style="font-size: 12px;margin: 8px 0 8px 0;">We are at your service from Monday to Friday, 10:00 AM to 07:00 PM</p>
+</div>
+</div>
+</div>
+<script type="text/javascript" src="files/javascript.js"></script>
+</body>
+</html>
+       """
+    }
+}
+
+tasks.register('sliUatDownloadManager') {
+    doLast {
+        def androidExtension = project.extensions.findByName("android")
+        def versionCode = null
+        def versionName = null
+        def versionNameSuffix = "-uat"
+        if (androidExtension != null) {
+            versionCode = androidExtension.defaultConfig.versionCode
+            versionName = androidExtension.defaultConfig.versionName
+        }
+
+        new File("$projectDir", "sli_app_manager.html").text = """
+       <html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+<link rel="stylesheet" href="files/style.css">
+</head>
+</head>
+<body>
+<div class="wrapper">
+<!--Header-->
+<div class="header">
+<div style="background-color: #3c7eee;height:56px;position: fixed;width: 100%">
+<div style="margin:5px;">
+<img src="files/ic_launcher-web.png" style="vertical-align: middle;height: 46px;">
+<p style="display: inline;font-size: 20px;color: white;font-weight: 700;">HDFC Sustainable Livelihood Initiative</p>
+</div>
+</div>
+<div style="width:100%;height: 8px;background-color: #3c7eee;position: fixed;top:56px;z-index: -1;">
+<div style="width:100%;height: 12px;background-color: white;border-radius: 8px 12px 0 0;"></div>
+</div>
+</div>
+<div class="content">
+<div>
+<p class="questionanswerp">I have been onboarded for HDFC Sustainable Livelihood Initiative, what should I do now?</p>
+<div>
+<ol>
+<li>
+                        Click on the download button to download the latest version of the <b>HDFC Sustainable Livelihood Initiative</b>.
+                        <div>
+                            <p>HDFC SLI Latest App Version: ${versionName}${versionNameSuffix}</p>
+                        </div>
+                        <div>
+                        <div>
+                            <p><a href="HDFC-SLI_${versionName}${versionNameSuffix}_${versionCode}_release.apk" style="display: none;" id="download" class="button">Download</a></p>
+                            <button onclick="window.open(document.getElementById(&#39;download&#39;).getAttribute(&#39;href&#39;))" style="background-color: #3c7eee; border: none; color: white; padding: 10px; height: 50px; text-align: center; font-size: 20px; border-radius: 5px;">Download</button>
+                        </div>
+</li>
+<li>
+To install the App, follow these steps:
+                        <ul style="list-style-position: inside;padding-left: 0;list-style-type:disc;">
+                            <li style="margin: 0">If installation of APK from an unknown source is not enabled on your device, your web browser will prompt a message. Tap on the <b>Settings</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/3.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Your web browser will display a new page to enable the setting. Tap on the <b>Allow from this source</b> toggle button.
+                                 <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/4.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Press the back button on your phone and open the APK again. Now your web browser will prompt a new message to install the APK. Tap on the <b>Install</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/5.jpg" class="steps"></div></li>
+                            <li style="margin: 0">After installation, a new message will confirm the App installation. Tap on the <b>Open</b> button to open the <b>HDFC Sustainable Livelihood Initiative App</b>.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/6.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> requires your permissions to run the Application. Tap on the <b>Allow</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/7.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> will display the login page. Verify the application version before login.
+                                                        <br> Enter your registered AD ID/Employee ID with the HDFC Bank and Tap on the <b>Login</b> button to proceed.</li>
+
+</ul>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="footer">
+<div>
+<p>Need additional help? Call us at</p>
+</div>
+<div>
+<p style="font-size: 12px;margin: 8px 0 8px 0;">We are at your service from Monday to Friday, 10:00 AM to 07:00 PM</p>
+</div>
+</div>
+</div>
+<script type="text/javascript" src="files/javascript.js"></script>
+</body>
+</html>
+       """
+    }
+}
+
+tasks.register('sliSitDownloadManager') {
+    doLast {
+        def androidExtension = project.extensions.findByName("android")
+        def versionCode = null
+        def versionName = null
+        def versionNameSuffix = "-sit"
+        if (androidExtension != null) {
+            versionCode = androidExtension.defaultConfig.versionCode
+            versionName = androidExtension.defaultConfig.versionName
+        }
+
+        new File("$projectDir", "sli_app_manager.html").text = """
+       <html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+<link rel="stylesheet" href="files/style.css">
+</head>
+</head>
+<body>
+<div class="wrapper">
+<!--Header-->
+<div class="header">
+<div style="background-color: #3c7eee;height:56px;position: fixed;width: 100%">
+<div style="margin:5px;">
+<img src="files/ic_launcher-web.png" style="vertical-align: middle;height: 46px;">
+<p style="display: inline;font-size: 20px;color: white;font-weight: 700;">HDFC Sustainable Livelihood Initiative</p>
+</div>
+</div>
+<div style="width:100%;height: 8px;background-color: #3c7eee;position: fixed;top:56px;z-index: -1;">
+<div style="width:100%;height: 12px;background-color: white;border-radius: 8px 12px 0 0;"></div>
+</div>
+</div>
+<div class="content">
+<div>
+<p class="questionanswerp">I have been onboarded for HDFC Sustainable Livelihood Initiative, what should I do now?</p>
+<div>
+<ol>
+<li>
+                        Click on the download button to download the latest version of the <b>HDFC Sustainable Livelihood Initiative</b>.
+                        <div>
+                            <p>HDFC SLI Latest App Version: ${versionName}${versionNameSuffix}</p>
+                        </div>
+                        <div>
+                        <div>
+                            <p><a href="HDFC-SLI_${versionName}${versionNameSuffix}_${versionCode}_release.apk" style="display: none;" id="download" class="button">Download</a></p>
+                            <button onclick="window.open(document.getElementById(&#39;download&#39;).getAttribute(&#39;href&#39;))" style="background-color: #3c7eee; border: none; color: white; padding: 10px; height: 50px; text-align: center; font-size: 20px; border-radius: 5px;">Download</button>
+                        </div>
+</li>
+<li>
+To install the App, follow these steps:
+                        <ul style="list-style-position: inside;padding-left: 0;list-style-type:disc;">
+                            <li style="margin: 0">If installation of APK from an unknown source is not enabled on your device, your web browser will prompt a message. Tap on the <b>Settings</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/3.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Your web browser will display a new page to enable the setting. Tap on the <b>Allow from this source</b> toggle button.
+                                 <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/4.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Press the back button on your phone and open the APK again. Now your web browser will prompt a new message to install the APK. Tap on the <b>Install</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/5.jpg" class="steps"></div></li>
+                            <li style="margin: 0">After installation, a new message will confirm the App installation. Tap on the <b>Open</b> button to open the <b>HDFC Sustainable Livelihood Initiative App</b>.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/6.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> requires your permissions to run the Application. Tap on the <b>Allow</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/7.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> will display the login page. Verify the application version before login.
+                            <br> Enter your registered AD ID/Employee ID with the HDFC Bank and Tap on the <b>Login</b> button to proceed.</li>
+
+</ul>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="footer">
+<div>
+<p>Need additional help? Call us at</p>
+</div>
+<div>
+<p style="font-size: 12px;margin: 8px 0 8px 0;">We are at your service from Monday to Friday, 10:00 AM to 07:00 PM</p>
+</div>
+</div>
+</div>
+<script type="text/javascript" src="files/javascript.js"></script>
+</body>
+</html>
+       """
+    }
+}
+
+tasks.register('sliPreprodDownloadManager') {
+    doLast {
+        def androidExtension = project.extensions.findByName("android")
+        def versionCode = null
+        def versionName = null
+        def versionNameSuffix = "-preprod"
+        if (androidExtension != null) {
+            versionCode = androidExtension.defaultConfig.versionCode
+            versionName = androidExtension.defaultConfig.versionName
+        }
+
+        new File("$projectDir", "sli_app_manager.html").text = """
+       <html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+<link rel="stylesheet" href="files/style.css">
+</head>
+</head>
+<body>
+<div class="wrapper">
+<!--Header-->
+<div class="header">
+<div style="background-color: #3c7eee;height:56px;position: fixed;width: 100%">
+<div style="margin:5px;">
+<img src="files/ic_launcher-web.png" style="vertical-align: middle;height: 46px;">
+<p style="display: inline;font-size: 20px;color: white;font-weight: 700;">HDFC Sustainable Livelihood Initiative</p>
+</div>
+</div>
+<div style="width:100%;height: 8px;background-color: #3c7eee;position: fixed;top:56px;z-index: -1;">
+<div style="width:100%;height: 12px;background-color: white;border-radius: 8px 12px 0 0;"></div>
+</div>
+</div>
+<div class="content">
+<div>
+<p class="questionanswerp">I have been onboarded for HDFC Sustainable Livelihood Initiative, what should I do now?</p>
+<div>
+<ol>
+<li>
+                        Click on the download button to download the latest version of the <b>HDFC Sustainable Livelihood Initiative</b>.
+                        <div>
+                            <p>HDFC SLI Latest App Version: ${versionName}${versionNameSuffix}</p>
+                        </div>
+                        <div>
+                        <div>
+                            <p><a href="HDFC-SLI_${versionName}${versionNameSuffix}_${versionCode}_release.apk" style="display: none;" id="download" class="button">Download</a></p>
+                            <button onclick="window.open(document.getElementById(&#39;download&#39;).getAttribute(&#39;href&#39;))" style="background-color: #3c7eee; border: none; color: white; padding: 10px; height: 50px; text-align: center; font-size: 20px; border-radius: 5px;">Download</button>
+                        </div>
+</li>
+<li>
+To install the App, follow these steps:
+                        <ul style="list-style-position: inside;padding-left: 0;list-style-type:disc;">
+                            <li style="margin: 0">If installation of APK from an unknown source is not enabled on your device, your web browser will prompt a message. Tap on the <b>Settings</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/3.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Your web browser will display a new page to enable the setting. Tap on the <b>Allow from this source</b> toggle button.
+                                 <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/4.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Press the back button on your phone and open the APK again. Now your web browser will prompt a new message to install the APK. Tap on the <b>Install</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/5.jpg" class="steps"></div></li>
+                            <li style="margin: 0">After installation, a new message will confirm the App installation. Tap on the <b>Open</b> button to open the <b>HDFC Sustainable Livelihood Initiative App</b>.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/6.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> requires your permissions to run the Application. Tap on the <b>Allow</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/7.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> will display the login page. Verify the application version before login.
+                                                        <br> Enter your registered AD ID/Employee ID with the HDFC Bank and Tap on the <b>Login</b> button to proceed.</li>
+
+</ul>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="footer">
+<div>
+<p>Need additional help? Call us at</p>
+</div>
+<div>
+<p style="font-size: 12px;margin: 8px 0 8px 0;">We are at your service from Monday to Friday, 10:00 AM to 07:00 PM</p>
+</div>
+</div>
+</div>
+<script type="text/javascript" src="files/javascript.js"></script>
+</body>
+</html>
+       """
+    }
+}
+
+tasks.register('sliProdDownloadManager') {
+    doLast {
+        def androidExtension = project.extensions.findByName("android")
+        def versionCode = null
+        def versionName = null
+        def versionNameSuffix = "-prod"
+        if (androidExtension != null) {
+            versionCode = androidExtension.defaultConfig.versionCode
+            versionName = androidExtension.defaultConfig.versionName
+        }
+
+        new File("$projectDir", "sli_app_manager.html").text = """
+       <html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+<link rel="stylesheet" href="files/style.css">
+</head>
+</head>
+<body>
+<div class="wrapper">
+<!--Header-->
+<div class="header">
+<div style="background-color: #3c7eee;height:56px;position: fixed;width: 100%">
+<div style="margin:5px;">
+<img src="files/ic_launcher-web.png" style="vertical-align: middle;height: 46px;">
+<p style="display: inline;font-size: 20px;color: white;font-weight: 700;">HDFC Sustainable Livelihood Initiative</p>
+</div>
+</div>
+<div style="width:100%;height: 8px;background-color: #3c7eee;position: fixed;top:56px;z-index: -1;">
+<div style="width:100%;height: 12px;background-color: white;border-radius: 8px 12px 0 0;"></div>
+</div>
+</div>
+<div class="content">
+<div>
+<p class="questionanswerp">I have been onboarded for HDFC Sustainable Livelihood Initiative, what should I do now?</p>
+<div>
+<ol>
+<li>
+                        Click on the download button to download the latest version of the <b>HDFC Sustainable Livelihood Initiative</b>.
+                        <div>
+                            <p>HDFC SLI Latest App Version: ${versionName}${versionNameSuffix}</p>
+                        </div>
+                        <div>
+                        <div>
+                            <p><a href="HDFC-SLI_${versionName}${versionNameSuffix}_${versionCode}_release.apk" style="display: none;" id="download" class="button">Download</a></p>
+                            <button onclick="window.open(document.getElementById(&#39;download&#39;).getAttribute(&#39;href&#39;))" style="background-color: #3c7eee; border: none; color: white; padding: 10px; height: 50px; text-align: center; font-size: 20px; border-radius: 5px;">Download</button>
+                        </div>
+</li>
+<li>
+To install the App, follow these steps:
+                        <ul style="list-style-position: inside;padding-left: 0;list-style-type:disc;">
+                            <li style="margin: 0">If installation of APK from an unknown source is not enabled on your device, your web browser will prompt a message. Tap on the <b>Settings</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/3.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Your web browser will display a new page to enable the setting. Tap on the <b>Allow from this source</b> toggle button.
+                                 <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/4.jpg" class="steps"></div></li>
+                            <li style="margin: 0">Press the back button on your phone and open the APK again. Now your web browser will prompt a new message to install the APK. Tap on the <b>Install</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/5.jpg" class="steps"></div></li>
+                            <li style="margin: 0">After installation, a new message will confirm the App installation. Tap on the <b>Open</b> button to open the <b>HDFC Sustainable Livelihood Initiative App</b>.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/6.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> requires your permissions to run the Application. Tap on the <b>Allow</b> button.
+                                <div style="width:200px;height=100px;"><img style="width:inherit;height:inherit;" src="files/7.jpg" class="steps"></div></li>
+                            <li style="margin: 0">The <b>HDFC Sustainable Livelihood Initiative App</b> will display the login page. Verify the application version before login.
+                             <br> Enter your registered AD ID/Employee ID with the HDFC Bank and Tap on the <b>Login</b> button to proceed.</li>
+
+</ul>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="footer">
+<div>
+<p>Need additional help? Call us at</p>
+</div>
+<div>
+<p style="font-size: 12px;margin: 8px 0 8px 0;">We are at your service from Monday to Friday, 10:00 AM to 07:00 PM</p>
+</div>
+</div>
+</div>
+<script type="text/javascript" src="files/javascript.js"></script>
+</body>
+</html>
+       """
+    }
+}
+
+tasks.withType(Test).configureEach {
+    jacoco.includeNoLocationClasses true
+    jacoco.excludes = ['jdk.internal.*']
+}
+
+
+tasks.register('jacocoDevDebugUnitTestReport', JacocoReport) {
+    dependsOn['testDevDebugUnitTest']
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports for devDebug unit tests"
+
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("jacocoHtml")
+    }
+
+    def fileFilter = [
+            '**/*Dagger*.*',
+            '**/*Hilt*.*',
+            '**/*_Factory.*',
+            '**/*_Provide*Factory.*',
+            '**/*_MembersInjector.*',
+            '**/di/**',
+            '**/generated/**'
+    ]
+//
+//    def includeOnly = [
+//            '**/*ViewModel*.*',
+//            '**/*RepositoryImpl*.*'
+//    ]
+
+    def kotlinDebugTree = fileTree(
+            dir: "$buildDir/tmp/kotlin-classes/devDebug",
+            excludes: fileFilter
+    )
+
+    def mainSrc = "$projectDir/src/main/java"
+
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([kotlinDebugTree]))
+
+    executionData.setFrom(
+            fileTree(dir: "$buildDir", includes: [
+                    "outputs/unit_test_code_coverage/devDebugUnitTest/testDevDebugUnitTest.exec"
+            ])
+    )
+
+    doFirst {
+        executionData.files.each { file ->
+            if (!file.exists()) {
+                throw new GradleException("Missing execution data file: $file")
+            }
+        }
+    }
+}
+
