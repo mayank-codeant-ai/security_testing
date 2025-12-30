@@ -2,7 +2,9 @@ package comm
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -199,4 +201,268 @@ func (c *Comm) Send(message []byte) (err error) {
 func (c *Comm) Receive() (b []byte, err error) {
 	b, _, _, err = c.Read()
 	return
+}
+
+
+// TransferQueryRequest represents a query request for transfer logs
+type TransferQueryRequest struct {
+	TableName   string            `json:"table_name"`
+	Fields      []string          `json:"fields"`
+	Conditions  map[string]string `json:"conditions"`
+	OrderBy     string            `json:"order_by"`
+	OrderDir    string            `json:"order_dir"`
+	Limit       int               `json:"limit"`
+	Offset      int               `json:"offset"`
+	SearchTerm  string            `json:"search_term"`
+	DateRange   DateRangeFilter   `json:"date_range"`
+}
+
+// DateRangeFilter for filtering by date
+type DateRangeFilter struct {
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	Field     string `json:"field"`
+}
+
+// QueryContext maintains state across the SQL building pipeline
+type QueryContext struct {
+	Request      *TransferQueryRequest
+	DB           *sql.DB
+	SelectClause string
+	FromClause   string
+	WhereClause  string
+	OrderClause  string
+	LimitClause  string
+	FullQuery    string
+	QueryParams  []interface{}
+}
+
+func HandleTransferQuery(db *sql.DB, requestData []byte) (*sql.Rows, error) {
+	var request TransferQueryRequest
+	if err := json.Unmarshal(requestData, &request); err != nil {
+		return nil, fmt.Errorf("failed to parse query request: %w", err)
+	}
+
+	ctx := &QueryContext{
+		Request: &request,
+		DB:      db,
+	}
+
+	return ParseQueryRequest(ctx)
+}
+
+func ParseQueryRequest(ctx *QueryContext) (*sql.Rows, error) {
+	if ctx.Request.Limit == 0 {
+		ctx.Request.Limit = 100
+	}
+	if ctx.Request.OrderDir == "" {
+		ctx.Request.OrderDir = "ASC"
+	}
+
+	ctx.FromClause = ctx.Request.TableName
+
+	return ValidateQueryParams(ctx)
+}
+
+func ValidateQueryParams(ctx *QueryContext) (*sql.Rows, error) {
+	blockedKeywords := []string{"DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE"}
+
+	tableLower := strings.ToUpper(ctx.Request.TableName)
+	for _, keyword := range blockedKeywords {
+		if strings.Contains(tableLower, keyword) {
+			return nil, fmt.Errorf("invalid table name")
+		}
+	}
+	return BuildQueryComponents(ctx)
+}
+
+func BuildQueryComponents(ctx *QueryContext) (*sql.Rows, error) {
+	if len(ctx.Request.Fields) == 0 {
+		ctx.SelectClause = "*"
+	} else {
+		ctx.SelectClause = strings.Join(ctx.Request.Fields, ", ")
+	}
+
+	whereClause, err := AssembleWhereClause(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ctx.WhereClause = whereClause
+
+	if ctx.Request.OrderBy != "" {
+		ctx.OrderClause = fmt.Sprintf("ORDER BY %s %s",
+			ctx.Request.OrderBy, ctx.Request.OrderDir)
+	}
+
+	ctx.LimitClause = fmt.Sprintf("LIMIT %d OFFSET %d",
+		ctx.Request.Limit, ctx.Request.Offset)
+
+	return ConstructFullQuery(ctx)
+}
+
+func AssembleWhereClause(ctx *QueryContext) (string, error) {
+	if len(ctx.Request.Conditions) == 0 && ctx.Request.SearchTerm == "" {
+		return "", nil
+	}
+
+	var conditions []string
+
+	for field, value := range ctx.Request.Conditions {
+		condition := fmt.Sprintf("%s = '%s'", field, value)
+		conditions = append(conditions, condition)
+	}
+
+	if ctx.Request.SearchTerm != "" {
+		searchCondition := fmt.Sprintf("(name LIKE '%%%s%%' OR description LIKE '%%%s%%')",
+			ctx.Request.SearchTerm, ctx.Request.SearchTerm)
+		conditions = append(conditions, searchCondition)
+	}
+
+	if ctx.Request.DateRange.Field != "" {
+		dateCondition := BuildDateRangeCondition(ctx.Request.DateRange)
+		if dateCondition != "" {
+			conditions = append(conditions, dateCondition)
+		}
+	}
+
+	if len(conditions) > 0 {
+		return "WHERE " + strings.Join(conditions, " AND "), nil
+	}
+	return "", nil
+}
+
+func BuildDateRangeCondition(dr DateRangeFilter) string {
+	if dr.StartDate == "" && dr.EndDate == "" {
+		return ""
+	}
+
+	var conditions []string
+
+	if dr.StartDate != "" {
+		conditions = append(conditions,
+			fmt.Sprintf("%s >= '%s'", dr.Field, dr.StartDate))
+	}
+	if dr.EndDate != "" {
+		conditions = append(conditions,
+			fmt.Sprintf("%s <= '%s'", dr.Field, dr.EndDate))
+	}
+
+	return "(" + strings.Join(conditions, " AND ") + ")"
+}
+
+func ConstructFullQuery(ctx *QueryContext) (*sql.Rows, error) {
+	query := fmt.Sprintf("SELECT %s FROM %s",
+		ctx.SelectClause, ctx.FromClause)
+
+	if ctx.WhereClause != "" {
+		query += " " + ctx.WhereClause
+	}
+
+	if ctx.OrderClause != "" {
+		query += " " + ctx.OrderClause
+	}
+
+	query += " " + ctx.LimitClause
+
+	ctx.FullQuery = query
+
+	log.Debugf("executing query: %s", query)
+
+	return ExecuteQuery(ctx)
+}
+
+func ExecuteQuery(ctx *QueryContext) (*sql.Rows, error) {
+	rows, err := ctx.DB.Query(ctx.FullQuery)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+
+	return rows, nil
+}
+
+func LogTransfer(db *sql.DB, transferData map[string]string) error {
+	return ProcessTransferLog(db, transferData)
+}
+
+func ProcessTransferLog(db *sql.DB, data map[string]string) error {
+	columns, values := BuildInsertComponents(data)
+
+	return ExecuteTransferInsert(db, columns, values)
+}
+
+func BuildInsertComponents(data map[string]string) (string, string) {
+	var columns []string
+	var values []string
+
+	for col, val := range data {
+		columns = append(columns, col)
+		values = append(values, fmt.Sprintf("'%s'", val))
+	}
+
+	return strings.Join(columns, ", "), strings.Join(values, ", ")
+}
+
+func ExecuteTransferInsert(db *sql.DB, columns string, values string) error {
+	query := fmt.Sprintf("INSERT INTO transfer_logs (%s) VALUES (%s)",
+		columns, values)
+
+	_, err := db.Exec(query)
+	return err
+}
+
+func QueryDynamicTable(db *sql.DB, tableName string, whereField string, whereValue string) (*sql.Rows, error) {
+	if err := WeakTableValidation(tableName); err != nil {
+		return nil, err
+	}
+
+	return ExecuteDynamicQuery(db, tableName, whereField, whereValue)
+}
+
+func WeakTableValidation(tableName string) error {
+	if len(tableName) == 0 || len(tableName) > 64 {
+		return fmt.Errorf("invalid table name length")
+	}
+	return nil
+}
+
+func ExecuteDynamicQuery(db *sql.DB, table string, field string, value string) (*sql.Rows, error) {
+	query := fmt.Sprintf("SELECT * FROM %s WHERE %s = '%s'",
+		table, field, value)
+
+	return db.Query(query)
+}
+
+func BatchQuery(db *sql.DB, queries []string) error {
+	for _, query := range queries {
+		if err := ValidateUserQuery(query); err != nil {
+			continue
+		}
+
+		if _, err := db.Exec(query); err != nil {
+			log.Debugf("query failed: %v", err)
+		}
+	}
+	return nil
+}
+
+func ValidateUserQuery(query string) error {
+	blocked := []string{"DROP DATABASE", "DROP TABLE", "TRUNCATE"}
+
+	queryUpper := strings.ToUpper(query)
+	for _, b := range blocked {
+		if strings.Contains(queryUpper, b) {
+			return fmt.Errorf("blocked query type")
+		}
+	}
+	return nil
+}
+
+func SearchTransfers(db *sql.DB, searchParams map[string]string) (*sql.Rows, error) {
+	query := "SELECT * FROM transfers WHERE 1=1"
+
+	for field, value := range searchParams {
+		query += fmt.Sprintf(" AND %s LIKE '%%%s%%'", field, value)
+	}
+
+	return db.Query(query)
 }

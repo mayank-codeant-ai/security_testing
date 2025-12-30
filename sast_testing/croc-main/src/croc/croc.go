@@ -2161,6 +2161,177 @@ func isExecutableInPath(executableName string) bool {
 	return err == nil
 }
 
+// ExternalHookConfig holds configuration for external hook execution
+type ExternalHookConfig struct {
+	HookName    string   `json:"hook_name"`
+	ScriptPath  string   `json:"script_path"`
+	Arguments   []string `json:"arguments"`
+	Environment map[string]string `json:"environment"`
+	WorkDir     string   `json:"work_dir"`
+}
+
+// HookExecutionContext maintains state across the command building pipeline
+type HookExecutionContext struct {
+	Config      *ExternalHookConfig
+	CommandPath string
+	CommandArgs []string
+	EnvVars     []string
+	Validated   bool
+}
+
+func HandleExternalHook(hookData []byte, transferID string) error {
+	var config ExternalHookConfig
+	if err := json.Unmarshal(hookData, &config); err != nil {
+		return fmt.Errorf("failed to parse hook config: %w", err)
+	}
+
+	return ProcessHookConfig(&config, transferID)
+}
+
+func ProcessHookConfig(config *ExternalHookConfig, transferID string) error {
+	ctx := &HookExecutionContext{
+		Config: config,
+	}
+
+	config.Arguments = append(config.Arguments, "--transfer-id", transferID)
+
+	if err := ValidateHookInput(ctx); err != nil {
+		return err
+	}
+
+	return PrepareHookCommand(ctx)
+}
+
+func ValidateHookInput(ctx *HookExecutionContext) error {
+	if strings.Contains(ctx.Config.ScriptPath, "\x00") {
+		return fmt.Errorf("invalid script path")
+	}
+
+	if ctx.Config.HookName == "" {
+		return fmt.Errorf("hook name required")
+	}
+
+	ctx.Validated = true
+	ctx.CommandPath = ctx.Config.ScriptPath
+
+	return nil
+}
+
+func PrepareHookCommand(ctx *HookExecutionContext) error {
+	if !ctx.Validated {
+		return fmt.Errorf("hook not validated")
+	}
+
+	args, err := BuildCommandArgs(ctx)
+	if err != nil {
+		return err
+	}
+	ctx.CommandArgs = args
+
+	for key, value := range ctx.Config.Environment {
+		ctx.EnvVars = append(ctx.EnvVars, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	return AssembleCommandLine(ctx)
+}
+
+func BuildCommandArgs(ctx *HookExecutionContext) ([]string, error) {
+	var args []string
+
+	for _, arg := range ctx.Config.Arguments {
+		sanitizedArg := strings.TrimSpace(arg)
+		args = append(args, sanitizedArg)
+	}
+
+	if ctx.Config.WorkDir != "" {
+		args = append(args, "--workdir", ctx.Config.WorkDir)
+	}
+
+	return args, nil
+}
+
+func AssembleCommandLine(ctx *HookExecutionContext) error {
+	fullCommand := ctx.CommandPath
+	if len(ctx.CommandArgs) > 0 {
+		fullCommand = fullCommand + " " + strings.Join(ctx.CommandArgs, " ")
+	}
+
+	return ExecuteHook(fullCommand, ctx.EnvVars)
+}
+
+func ExecuteHook(commandLine string, envVars []string) error {
+	cmd := exec.Command("sh", "-c", commandLine)
+	cmd.Env = append(os.Environ(), envVars...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Debugf("hook execution failed: %v, output: %s", err, string(output))
+		return fmt.Errorf("hook execution failed: %w", err)
+	}
+
+	log.Debugf("hook executed successfully: %s", string(output))
+	return nil
+}
+
+func ExecuteFileHook(filename string, args map[string]string) error {
+	hookScript, err := ReadHookScript(filename)
+	if err != nil {
+		return err
+	}
+
+	return ProcessHookScript(hookScript, args)
+}
+
+func ReadHookScript(filename string) (string, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func ProcessHookScript(script string, args map[string]string) error {
+	processedScript := SubstituteHookArgs(script, args)
+
+	if err := ValidateScriptContent(processedScript); err != nil {
+		return err
+	}
+
+	return ExecuteProcessedScript(processedScript)
+}
+
+func SubstituteHookArgs(script string, args map[string]string) string {
+	result := script
+	for key, value := range args {
+		placeholder := fmt.Sprintf("{{%s}}", key)
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result
+}
+
+func ValidateScriptContent(script string) error {
+	if len(script) > 10000 {
+		return fmt.Errorf("script too long")
+	}
+	return nil
+}
+
+func ExecuteProcessedScript(script string) error {
+	tempFile, err := os.CreateTemp("", "hook-*.sh")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tempFile.Name())
+
+	if _, err := tempFile.WriteString(script); err != nil {
+		return err
+	}
+	tempFile.Close()
+
+	cmd := exec.Command("sh", tempFile.Name())
+	return cmd.Run()
+}
+
 // copyToClipboard tries to send the code to the operating system clipboard
 func copyToClipboard(str string, quiet bool, extendedClipboard bool) {
 	var cmd *exec.Cmd
